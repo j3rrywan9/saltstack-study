@@ -1,0 +1,24 @@
+{%- for alias in sudoers.user_alias|default({}) -%}
+User_Alias{{ "\t" ~ alias }} = {{ sudoers.user_alias[alias]|join(', ') }}
+
+{% endfor %}
+{%- for alias in sudoers.runas_alias|default({}) -%}
+Runas_Alias{{ "\t" ~ alias }} = {{ sudoers.runas_alias[alias]|join(', ') }}
+
+{% endfor %}
+{%- for alias in sudoers.host_alias|default({}) -%}
+Host_Alias{{ "\t" ~ alias }} = {{ sudoers.Host[alias]|join(', ') }}
+
+{% endfor %}
+{%- for alias in sudoers.cmnd_alias|default({}) -%}
+Cmnd_Alias{{ "\t" ~ alias }} = {{ sudoers.cmnd_alias[alias]|join(', \\\n') }}
+
+{% endfor %}
+{%- for user in sudoers.users|default({}) -%}
+{{ user ~ "\t" }}ALL = {{ sudoers.users[user]|join(', \\\n') }}
+
+{% endfor %}
+{%- for group in sudoers.groups|default({}) -%}
+%{{ group ~ "\t"  }}ALL = {{ sudoers.groups[group]|join(', \\\n') }}
+
+{% endfor %}
