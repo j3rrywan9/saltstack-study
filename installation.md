@@ -22,14 +22,14 @@ deb http://repo.saltstack.com/apt/debian/8/amd64/archive/2016.3.1 jessie main
 
 Run
 ```bash
-sudo apt-get update && sudo apt-get install -y salt-minion
+sudo apt-get update && sudo apt-get -y install salt-minion
 ```
 
 #### Master
 
 Run
 ```bash
-sudo apt-get update && sudo apt-get install -y salt-master salt-minion
+sudo apt-get update && sudo apt-get -y install salt-master salt-minion
 ```
 
 Before commands can be sent to a minion, its key must be accepted on the master.
@@ -41,5 +41,5 @@ sudo salt-key -L
 To accept the keys and allow the minions to be controlled by the master, again use the `salt-key` command:
 
 ```bash
-sudo salt-key -A
+sudo salt-key -A -y
 ```
