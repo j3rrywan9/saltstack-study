@@ -1,0 +1,17 @@
+RedHat:
+  init_db: True
+  commands:
+    initdb: sudo -u postgres initdb /var/lib/pgsql/data
+  pkg: postgresql-server
+  pkg_client: postgresql
+  pkg_repo: pgdg94
+  repo_baseurl: http://yum.postgresql.org/9.4/redhat/rhel-$releasever-$basearch
+Arch: {}
+Debian:
+  pkg_repo_file: /etc/apt/sources.list.d/pgdg.list
+  pkg_libpq_dev: libpq-dev
+Suse:
+  commands:
+    initdb: sudo -u postgres initdb /var/lib/pgsql/data
+  pkg: postgresql-server
+  pkg_client: postgresql
