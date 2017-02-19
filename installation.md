@@ -20,18 +20,16 @@ deb http://repo.saltstack.com/apt/debian/8/amd64/archive/2016.3.1 jessie main
 
 #### Minion
 
-Run `sudo apt-get update`
-
+Run
 ```bash
-sudo apt-get salt-minion
+sudo apt-get update && sudo apt-get install -y salt-minion
 ```
 
 #### Master
 
-Run `sudo apt-get update`
-
+Run
 ```bash
-sudo apt-get salt-master salt-minion
+sudo apt-get update && sudo apt-get install -y salt-master salt-minion
 ```
 
 Before commands can be sent to a minion, its key must be accepted on the master.
