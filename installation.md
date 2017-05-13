@@ -11,9 +11,9 @@ Run the following command to import the SaltStack repository key:
 wget -O - https://repo.saltstack.com/apt/debian/8/amd64/archive/2016.3.1/SALTSTACK-GPG-KEY.pub | sudo apt-key add -
 ```
 
-Save the following file to `/etc/apt/sources.list.d/saltstack.list`:
-```
-deb http://repo.saltstack.com/apt/debian/8/amd64/archive/2016.3.1 jessie main
+Add the following SaltStack repository to `/etc/apt/sources.list.d/saltstack.list`:
+```bash
+echo "deb http://repo.saltstack.com/apt/debian/8/amd64/archive/2016.3.1 jessie main" | tee /etc/apt/sources.list.d/saltstack.list
 ```
 
 ### Install packages
