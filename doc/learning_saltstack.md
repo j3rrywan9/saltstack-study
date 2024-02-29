@@ -109,9 +109,18 @@ This particular command is a great example of how different types of data are di
 
 ##### List matching
 
+Sometimes, we just want to match a list of minions for a given command, without any fancy matching.
+This is easily possible using the list matcher.
+The list matcher is invoked with the `-L` or `--list` command-line option and takes a comma-separated list of minions, as shown in the following code:
+```shell
+# sudo salt -L 'myminion' test.ping
+
+# sudo salt -L 'myminion,yourminion,theirminion' test.ping
+```
+
 ##### Grain and pillar matching
 
-Salt can also match using data in grains or pillars.
+Salt can also perform minion matches data in grains or pillars.
 **Grains** and **pillars** are two concepts specific to Salt.
 Both are key-value data stores where we can store data about, or for use by, our minions.
 We don't talk much about pillars until we get to the later chapter of states.
@@ -208,16 +217,22 @@ State files are formatted using **YAML**.
 To apply states to our minions, we actually use the `state` execution module.
 
 This highlights a major change between execution modules and state modules.
-
 Execution modules are iterative, while state modules are declarative.
+What do we mean by this?
 Execution module functions perform a task.
-Generally, when you call the same execution module multiple times in succession, it will run the same logic and commands under the hood each time.
+In general, when you call the same execution module multiple times in succession, it will run the same logic and commands under the hood each time.
 
 State module functions, on the other hand, are designed to be idempotent.
-Idempotent state modules functions are designed to do only as much as necessary to create a given state on the target minion.
+An idempotent operation is one that only changes the result the first time it is applied.
+Subsequent applications do not continue to apply changes.
+Idempotent state module functions are designed to do only as much work as necessary to create a given state on the target minion.
 
 In the case of our first state, we are running a state module function, `pkg.installed`.
+Note the language change from execution modules.
+`pkg.install` tells the minion to "install this package".
 On the other hand, `pkg.installed` tells the minion to "ensure that this package is installed".
+Under the hood, `pkg.install` is just running `apt-get install <package>` whereas `pkg.installed` actually calls out to the `pkg` execution module to find out whether the package is installed and only installs it if there's a need.
+It does the minimum amount of work to bring your minion into the correct state, nothing more.
 
 We list the functions for a given state module with sys.list_state_functions, as follows:
 ```bash
@@ -231,102 +246,65 @@ sudo salt-call sys.state_doc pkg.removed
 
 ### The pieces of a state declaration
 
-State declarations can be broken up into multiple pieces.
+Just as with our remote execution commands, state declarations can be broken up into multiple pieces.
+Here is our state from before:
+```yaml
+install_apache:
+  pkg.installed:
+    - name: apache2
+```
+
+Here is information about how the pieces line up and what each piece of the state declaration is called:
+```yaml
+<ID Declaration>:
+  <State Module>.<Function>:
+    - name: <name>
+    - <Function Arg>
+    - <Function Arg>
+    - <Function Arg>
+    - <Requisite Declaration>:
+      - <Requisite Reference>
+```
+The preceding reference and more advanced examples can be found in the Salt documentation at http://docs.saltstack.com/en/latest/ref/states/highstate.html#large-example.
+
+We haven't talked about requisites yet, so ignore that section for the moment.
 
 We start with the ID of our state.
 This is a string that must be unique across all of the states we are running at a given time.
+
+Finally, we have our function arguments.
+The first argument is always `name`, followed by any additional arguments required for the state.
 
 ### Expanding to encompass multiple pieces of state
 
 ### Dependencies using requisites
 
-We'll use `file.managed`, a very flexible function to manage files on our minions.
-```bash
-sudo salt-call sys.state_doc file.managed
+#### The `require` requisite
+
+The most basic requisite is `require`, which allows you to specify that one state requires another state to be run successfully first.
+
+#### The `watch` requisite
+
+To keep our example simple, we'll just create a couple of Apache configuration files that give our server a status page.
+To do this, we'll explore another state module that is very commonly used in Salt: the `file` module.
+Specifically, we'll use `file.managed`, a very flexible function to manage files on our minions.
+Here's what you get when you use the `file.managed` function:
+```shell
+sudo salt '*' sys.state_doc file.managed
 ```
+
+For these states, we will need source files that the master will transfer to the minions as part of the state execution.
+By default, the master will serve all files (state files and other files needed by the minions) out of the `/srv/salt/` directory that we've been using.
 
 Here, we've introduced the `salt://` protocol in our `source` arguments.
 These paths refer to files that the minion will request from the master.
 Again, these files are stored by default in `/srv/salt`.
 
-### Environments
-
-Salt provides a concept of environments to further organize our states.
-Until now, we've been using the default `base` environment.
-However, we can configure as many environments as we need to organize our infrastructure and give each environment its own directory/directories.
-
-Note that we still only have one `top.sls` file even though we now have two environments.
-This is because even though the Top file lives in the same place as the rest of our states, it transcends environments because it defines environments.
-
-You can have a different Top file in each environment; however, keep in mind that when you run a highstate, the Top files from all environments will be combined into a single set of top data.
-So it is recommended that you either have a single Top file in the `base` environment or have a Top file in each environment that defines *only* that environment.
-
-### State
-
-A reusable declaration that configures a specific part of a system.
-Each Salt state is defined using a state declaration.
-
-### State Declaration
-
-A top level section of a state file that lists the state function calls and arguments that make up a state.
-Each state declaration starts with a unique ID.
-
-### State file
-
-A file with an SLS extension that contains one or more state declarations.
-
-Salt states are generic by design, and describe only *how* a configuration should be achieved.
-
-Top file describes *where* states should be applied.
-
-States and the Top file work together to create the core of SaltStack's configuration management capability.
-
-The Top file is used to apply multiple state files to your Salt minions during a highstate.
-The states that are applied to each system are determined by the targets that are specified in the Top file.
-
-### Grains
-
-Grains are static information SaltStack collects about the underlying managed system.
-SaltStack collects grains for the operating system, domain name, IP address, kernel, OS type, memory, and many other system properties.
-
-You can add your own grains to a Salt minion by placing them in the **/etc/salt/grains** file on the Salt master, or in the Salt minion configuration file under the **grains** section.
-
-You can use the **grains.ls** command to list all of the grains on a Salt minion.
-
-### Pillar
-
-Salt pillar is a system that lets you define secure data that are 'assigned' to one or more minions using targets.
-
-Salt pillar uses a Top file to match Salt pillar data to Salt minions.
-
-#### Salt Pillar in Salt States
-
-Salt pillar keys are available in a dictionary in Salt states.
-
-#### Salt Pillar on the Command-line
-
-For testing or for ad hoc management, you can pass Salt pillar values directly on the command line.
-These values override any value that might be set in a Salt pillar file.
-
-### Includes
-
-To keep your Salt states modular and reusable, each configuration task should be described only once in your Salt state tree.
-If you need to use the same configuration task in multiple places, you can use include.
-
-Note that you don't need to include the .sls extension.
-
-If the Salt state file that you want to include is in a subdirectory in your Salt state tree, use a dot (.) as a directory separator:
-```yaml
-include:
-  - dir.sls1
-```
-
-Included Salt states are inserted at the top of the current file and are processed first.
-
-If a Salt state always needs some other state, then using an include is a better choice.
-If only some systems should receive both Salt states, including both states in the Top file gives you the flexibility to choose which systems receive each.
+#### Other requisites
 
 ## Chapter 5. Expanding Our States with Jinja2 and Pillar
+
+In the previous chapter, you learned about the state system and wrote your first state.
 
 ### Adding a new minion
 
@@ -336,7 +314,13 @@ Jinja2 is a templating language for Python.
 Templating provides a mechanism by which you can create content for files using code blocks to generate content dynamically.
 
 There are two main types of Jinja2 syntaxes used in Salt.
-The first is variable, which uses double curly braces.
+The first is variable, which uses double curly braces (the spaces around `foo` are for readability and are note required), and which is shown in the following code:
+```jinja
+{{ foo }}
+{{ foo.bar }}
+{{ foo['bar'] }}
+{{ get_data() }}
+```
 
 Jinja2 also has access to basic control statements.
 Control statement blocks use a curly brace and percentage sign, which is depicted in the following code:
@@ -344,14 +328,27 @@ Control statement blocks use a curly brace and percentage sign, which is depicte
 {% %}
 ```
 
+Instead, let's use the power of Jinja2 to make our state platform agnostic by dynamically choosing the correct content for our state files.
+
 The first step is to change the package name and service name depending on the grains of the minion.
 Luckily, Salt provides us with a grains dictionary in our Jinja2 templating.
+Here are the changes we will be making to the first two states in our `/srv/salt/apache.sls` file:
+```yaml
+install_apache:
+  pkg.installed:
+{% if grains['os_family'] == 'Debian' %}
+    - name: apache2
+{% elif grains['os_family'] == 'RedHat' %}
+    - name: httpd
+{% endif %}
+```
 
 If you add a minus sign (-) to the start or end of a block (e.g. a For tag), a comment, or a variable expression, the whitespaces before or after that block will be removed.
 
 ### Defining secure minion-specific data in pillar
 
-There is no mechanism in the state files for per-minion access control.
+So far, we've only been defining the state of our infrastructure using state files.
+However, there is no mechanism in the state files for per-minion access control.
 Any file or data that you put in `/srv/salt` is immediately available for approved minions.
 
 Thus, we need a system to give minion-sensitive data.
@@ -362,13 +359,27 @@ However, each minion gets its own set of pillar data, encrypted on a per-minion 
 
 Our pillar files are stored in a separate directory from our state files.
 By default, this directory is `/srv/pillar`.
+
+Let's define some pillar data.
+Inside `/srv/pillar`, we're going to create a couple of files.
+The first file is going to be `/srv/pillar/core.sls`.
 Note that pillar files also have the `.sls`file extension.
-Note that these files are defined using YAML.
-However, the structure of these pillar files is much more freedom.
+Here are the contents of our `core.sls` file:
+```yaml
+foo: bar
+users:
+  - larry
+  - moe
+  - curly
+some_more_data: data
+```
+Note that these files, much like our state files, are defined using YAML.
+However, the structure of these pillar files is much more freeform.
 We're just defining data in the form of a dictionary.
+The data itself is arbitrary and will look different for most infrastructures.
 
 Now that we have our pillar data defined, we need to tell the master which minions will receive which data.
-We do this using a special file `/srv/pillar/top.sls`, which we call a Top file, as follows:
+We do this using a special file `/srv/pillar/top.sls`, which we call a topfile, as follows:
 ```yaml
 base:
   '*':
@@ -377,48 +388,120 @@ base:
     - match: grain
     - ssh_key
 ```
-The first thing you might notice is that the Top file is also formatted using YAML.
+There are a lot of new concepts in this file, despite it only being six lines long.
+The first thing you might notice is that the topfile is also formatted using YAML.
+It also follows a specific pattern.
 
 The first level of indentation defines environments.
+We're going to gloss over that for now since we're only using the default environment, named `base`, at the moment.
 
 At the next level of indentation, we define a series of targeting strings.
 
-The second targeting string ('`os_family: debian`') is a grain target.
-So, the first item in the list under that targeting string must define that we're using grain matching instead of globbing.
+The second targeting string (`'os_family: debian'`) is a grain target.
+So, the first item in the list under that targeting string must define that we're using grain matching instead of globbing (`- match: grain`).
+Therefore, all of our Debian distribution minions will get the pillar data defined in `ssh_key.sls` (`- ssh_key`).
 
 Pillar data is automatically refreshed whenever you run any states.
 However, it's sometimes useful to explicitly refresh the pillar data.
 We use a remote execution function named `saltutil.refresh_pillar` for this purpose.
+Here's how we explicitly refresh pillar data:
+```shell
+sudo salt '*' saltutil.refresh_pillar
+```
 
 If we've done everything correctly, we can query our minions for their pillar data using the `pillar.items` remote execution function:
-```bash
-sudo salt-call pillar.items
+```shell
+sudo salt '*' pillar.items
 ```
 
 #### Using pillar data in states
 
+Let's finish up this chapter with an example that will show how can use our pillar data in our state files using Jinja2.
+
+Create a new state file, `/srv/salt/users_and_ssh.sls`, as shown in the following code:
 ```yaml
 {% for user in pillar['users'] %}
 add_{{ user }}:
   user.present:
     - name: {{ user }}
 {% endfor %}
+
+{% if 'my_ssh_key' in pillar %}
+manage_my_ssh_key:
+  file.managed:
+    - name: /root/.ssh/{{ pillar['my_ssh_key_name'] }}
+    - contents_pillar: my_ssh_key
+    - show_diff: False
+{% endif %}
 ```
 Note that we use a Jinja2 `for` loop to create a state for each user we need to add on our systems.
+We also only create the ssh key file if the minion has the correct pillar data using a Jinja2 `if` statement.
+Also note that we didn't actually use a source file for our `file.managed` call here;
+instead, we told the minion to just insert the contents of a pillar key in that file (`my_ssh_key`).
 
-## The Highstate and Environments
+## Chapter 6. The Highstate and Environments
 
 ### The highstate
 
-The complete set of state files included in the Top file is referred to as the **highstate**.
-Thus, it shouldn't surprise you that we use the remote execution function `state.highstate` to run the highstate, as shown in the following example:
-```bash
-sudo salt '*' state.highstate
+Until now, we have only been running a single state file at a time using `stats.sls`.
+However, this doesn't scale very well once we have many state files to manage our entire infrastructure.
+We want to be able to split different pieces of our state into different files to make them more modular.
+How can we accomplish this?
 
-sudo salt-call state.show_highstate
+In the previous chapter, you learned how to target your pillar files to different minions using a `top.sls` file or topfile.
+Topfiles can also be used in the state system to target different state files to different minions.
+
+Let's create our topfile now, which is in `/srv/salt/top.sls`, as follows:
+```yaml
+base:
+  '*minion':
+    - apache
+  'os_family:debian':
+    - match: grain
+    - users_and_ssh
+```
+Note that this file is structured almost exactly like the topfile that we used for our pillar data.
+At the top level (first line), we define our environment.
+
+Within the environment, we define a series of targeting strings.
+Again, unless otherwise specified, the targeting string is using globbing to match minions.
+
+Once we've saved the previous file, we're ready to run it.
+The complete set of state files included in the topfile is referred to as the **highstate**.
+Thus, it shouldn't surprise you that we use the remote execution function `state.highstate`, to run the highstate, as shown in the following example:
+```shell
+sudo salt '*' state.highstate
 ```
 
-```bash
+```shell
 sudo salt-call state.show_top
 ```
 Return the top data that the minion will use for a highstate.
+
+#### Environments
+
+Salt provides a concept of environments to further organize our states.
+Until now, we've been using the default `base` environment.
+However, we can configure as many environments as we need to organize our infrastructure and give each environment its own location in the filesystem.
+
+We configure the locations of our environments on the master in the master configuration file, `/etc/salt/master`.
+If you look for the `File Server Settings` section in the default master configuration file, you can see some example configurations.
+We're going to keep ours very simple and just add a single new environment.
+Somewhere in your master configuration file, add the following lines:
+```yaml
+file_roots:
+  base:
+    - /srv/salt
+  webserver:
+    - /srv/web
+```
+
+Note that we still only have one `top.sls` file even though we now have two environments.
+This is because even though the topfile lives in the same place as the rest of our states, it transcends environments because it defines environments.
+
+You can have a different topfile in each environment; however, keep in mind that when you run a highstate, the topfiles from all environments will be combined into a single set of top data.
+So, it is recommended that you either have a single topfile in the `base` environment or have a topfile in each environment that defines only that environment.
+
+##### Environments in pillar
+
+Environments work almost identically in the pillar system.
